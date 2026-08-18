@@ -10,8 +10,9 @@ the caller decides how to phrase the fallback message (robustness requirement).
 import sqlite3
 from typing import Optional
 
-DB_PATH = r"data\northwind.db"
+DB_PATH = "data/northwind.db"
 
+# Columns pulled from the join — kept explicit (not SELECT *) so the
 # returned dict has a stable, predictable shape for downstream nodes.
 ORDER_SELECT = """
     SELECT
@@ -72,16 +73,30 @@ def lookup_order_by_email(email: str) -> Optional[dict]:
 
 def lookup_order(order_id: Optional[str] = None, email: Optional[str] = None) -> dict:
     """
-    Main entry point for the Order Lookup node. Tries order_id first (more
-    specific), falls back to email. Always returns a dict with a `found`
-    flag so the caller never has to guard against None.
-    """
-    record = None
+    Main entry point for the Order Lookup node.
 
-    if order_id:
+    Identity check: when BOTH order_id and email are given, the order must
+    belong to that email — a wrong/garbage order_id must NOT silently fall
+    back to "any order for this email" (that would defeat the point of
+    requiring both fields as basic identity verification).
+
+    - Both provided: exact match required (order_id AND matching email).
+    - Only order_id provided: looked up directly (caller/router decides
+      whether that's allowed — currently the router requires both).
+    - Only email provided: most recent order for that email.
+    """
+    if order_id and email:
         record = lookup_order_by_id(order_id)
-    if record is None and email:
+        if record is not None and record.get("email") != email:
+            # order_id exists but belongs to someone else — treat as not found,
+            # don't leak the mismatched record.
+            record = None
+    elif order_id:
+        record = lookup_order_by_id(order_id)
+    elif email:
         record = lookup_order_by_email(email)
+    else:
+        record = None
 
     if record is None:
         return {"found": False, "order": None}
