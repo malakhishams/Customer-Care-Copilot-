@@ -92,17 +92,17 @@ def reply_node(state: dict) -> dict:
         log_entry = "Reply: fallback — unexpected state"
 
     return {
-        "final_reply": reply,
+        "draft_reply": reply,
         "routing_log": [log_entry],
     }
 
 
 if __name__ == "__main__":
     missing_state = {"missing_fields": ["order_id"], "order_found": None, "order_record": None}
-    print("Missing info:", reply_node(missing_state)["final_reply"], "\n")
+    print("Missing info:", reply_node(missing_state)["draft_reply"], "\n")
 
     not_found_state = {"missing_fields": [], "order_found": False, "order_record": None}
-    print("Not found:", reply_node(not_found_state)["final_reply"], "\n")
+    print("Not found:", reply_node(not_found_state)["draft_reply"], "\n")
 
     found_state = {
         "missing_fields": [],
@@ -117,4 +117,4 @@ if __name__ == "__main__":
             "carrier": "shippo",
         },
     }
-    print("Found (LLM draft):", reply_node(found_state)["final_reply"])
+    print("Found (LLM draft):", reply_node(found_state)["draft_reply"])

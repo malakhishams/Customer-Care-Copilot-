@@ -1,5 +1,9 @@
 """
 Shared graph state for the Customer Care Copilot.
+
+Built incrementally, one User Story at a time. Right now this only holds
+what US-01 (Order Lookup) needs. Fields for tracking, returns, evaluator,
+memory, and handoff will be added when we build those USs.
 """
 
 from typing import TypedDict, Optional, Annotated
@@ -7,18 +11,39 @@ import operator
 
 
 class CustomerCareState(TypedDict):
-
+    # ---------------------------------------------------------------
+    # Conversation input
+    # ---------------------------------------------------------------
     customer_message: str                       # latest raw message from the customer
+
+    # ---------------------------------------------------------------
+    # Identity / slot-filling (US-01)
+    # ---------------------------------------------------------------
     customer_email: Optional[str]                # collected from customer, or resolved via DB
     order_id: Optional[str]                       # collected from customer
     missing_fields: list[str]                     # what the router still needs before it can proceed
 
-    # Order Lookup (US-01) —> result of the DB tool call
+    # ---------------------------------------------------------------
+    # Order Lookup (US-01) — result of the DB tool call
+    # ---------------------------------------------------------------
     order_record: Optional[dict]                  # row from Orders (+ joined CustomerContacts/Shipments)
     order_found: Optional[bool]
 
-    final_reply: Optional[str]                    # customer-facing message [output]
+    # ---------------------------------------------------------------
+    # Output
+    # ---------------------------------------------------------------
+    draft_reply: Optional[str]                    # produced by reply_node, before quality gate
 
+    # ---------------------------------------------------------------
+    # Evaluator-Optimizer (US-04) — quality/brand-safety gate
+    # ---------------------------------------------------------------
+    evaluator_score: Optional[dict]                # {"tone": .., "clarity": .., "policy": .., "completeness": ..}
+    evaluator_feedback: Optional[str]               # what's wrong, feeds the optimizer's revision prompt
+    revision_count: int                             # 0 = not yet revised, 1 = revised once (stop after this)
+    final_reply: Optional[str]                      # what actually gets "sent" — evaluator-optimizer's output
+
+    # ---------------------------------------------------------------
     # Observability (Non-functional requirement: logs)
+    # ---------------------------------------------------------------
     routing_log: Annotated[list[str], operator.add]     # e.g. "Missing order_id, asking customer"
     tool_call_log: Annotated[list[dict], operator.add]  # {"tool": "db_tool", "input": ..., "output": ...}
