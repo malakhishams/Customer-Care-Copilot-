@@ -9,6 +9,11 @@ Three cases, handled differently on purpose:
   - order_found == True       -> LLM-drafted reply (this is where "simple
     language" summarizing status/dates/next-step genuinely benefits from
     an LLM, unlike the router's regex extraction)
+
+NOTE: this writes to `final_reply` for now, since US-04 (evaluator-optimizer)
+doesn't exist yet. Once we build US-04, this node's LLM output becomes
+`draft_reply` instead, and the evaluator-optimizer produces the real
+`final_reply` after scoring/revising it.
 """
 
 import os
@@ -80,19 +85,24 @@ def reply_node(state: dict) -> dict:
     if missing_fields:
         reply = _template_missing_info(missing_fields)
         log_entry = "Reply: asked for missing info (template, no LLM call)"
+        is_llm_draft = False
     elif order_found is False:
         reply = _template_not_found()
         log_entry = "Reply: order not found (template, no LLM call)"
+        is_llm_draft = False
     elif order_found is True and order_record:
         reply = _draft_found_reply(order_record)
         log_entry = "Reply: order found, drafted via LLM"
+        is_llm_draft = True
     else:
         # Shouldn't normally happen, but never leave the customer with nothing.
         reply = "Sorry, something went wrong on our end. Let me get a human agent to help."
         log_entry = "Reply: fallback — unexpected state"
+        is_llm_draft = False
 
     return {
         "draft_reply": reply,
+        "is_llm_draft": is_llm_draft,
         "routing_log": [log_entry],
     }
 

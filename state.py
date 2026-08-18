@@ -33,6 +33,7 @@ class CustomerCareState(TypedDict):
     # Output
     # ---------------------------------------------------------------
     draft_reply: Optional[str]                    # produced by reply_node, before quality gate
+    is_llm_draft: bool                             # True only if reply_node called the LLM (skips evaluator otherwise)
 
     # ---------------------------------------------------------------
     # Evaluator-Optimizer (US-04) — quality/brand-safety gate
