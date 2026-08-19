@@ -69,6 +69,11 @@ class CustomerCareState(TypedDict):
     case_summary: Optional[str]                      # running long-term summary of the whole case
 
     # ---------------------------------------------------------------
+    # Handoff (US-06)
+    # ---------------------------------------------------------------
+    handoff_note: Optional[str]                       # one-paragraph summary generated on-demand
+
+    # ---------------------------------------------------------------
     # Observability (Non-functional requirement: logs)
     # ---------------------------------------------------------------
     routing_log: Annotated[list[str], operator.add]     # e.g. "Missing order_id, asking customer"

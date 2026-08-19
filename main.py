@@ -12,6 +12,7 @@ Run:
 
 import uuid
 from graph import graph
+from nodes.handoff import handoff_node
 
 # Fields that must be RESET every turn (ephemeral, per-message) vs fields
 # that should PERSIST across turns (identity, memory) via the checkpointer.
@@ -44,7 +45,7 @@ def run_chat():
     thread_id = str(uuid.uuid4())
     config = {"configurable": {"thread_id": thread_id}}
 
-    print("Customer Care Copilot — type 'quit' to end the session, 'debug' to toggle logs\n")
+    print("Customer Care Copilot — type 'quit' to end, 'debug' to toggle logs, 'handoff' for a supervisor note\n")
     show_debug = False
 
     while True:
@@ -57,6 +58,14 @@ def run_chat():
         if user_input.lower() == "debug":
             show_debug = not show_debug
             print(f"[debug logging {'ON' if show_debug else 'OFF'}]")
+            continue
+
+        if user_input.lower() == "handoff":
+            # Read current state from the checkpointer without advancing the
+            # conversation — handoff is a snapshot, not a new turn.
+            current_state = graph.get_state(config).values
+            result = handoff_node(current_state)
+            print(f"\n--- Handoff Note ---\n{result['handoff_note']}\n---------------------\n")
             continue
 
         if not user_input:

@@ -20,10 +20,12 @@ import os
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 
+from utils.llm_helpers import extract_text
+
 load_dotenv()
 
 llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
+    model="gemini-3.6-flash",
     google_api_key=os.getenv("GEMINI_API_KEY"),
 )
 
@@ -91,7 +93,7 @@ def _draft_found_reply(order_record: dict, tracking_status: dict | None) -> str:
         tracking_section=tracking_section,
     )
     response = llm.invoke(prompt)
-    return response.content.strip()
+    return extract_text(response)
 
 
 def _clarify_return_reason_template() -> str:

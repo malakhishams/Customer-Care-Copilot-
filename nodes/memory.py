@@ -22,10 +22,12 @@ import os
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 
+from utils.llm_helpers import extract_text
+
 load_dotenv()
 
 llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
+    model="gemini-3.6-flash",
     google_api_key=os.getenv("GEMINI_API_KEY"),
 )
 
@@ -63,7 +65,7 @@ def memory_node(state: dict) -> dict:
         customer_message=customer_message,
         final_reply=final_reply,
     ))
-    updated_summary = response.content.strip()
+    updated_summary = extract_text(response)
 
     return {
         "window_memory": updated_window,

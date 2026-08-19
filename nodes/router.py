@@ -22,10 +22,12 @@ import re
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 
+from utils.llm_helpers import extract_text
+
 load_dotenv()
 
 llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
+    model="gemini-3.6-flash",
     google_api_key=os.getenv("GEMINI_API_KEY"),
 )
 
@@ -59,7 +61,7 @@ def extract_order_id(message: str) -> str | None:
 
 def classify_intent(message: str) -> str:
     response = llm.invoke(INTENT_PROMPT.format(message=message))
-    result = response.content.strip().lower()
+    result = extract_text(response).lower()
     # Fail safe: if the LLM returns anything unexpected, default to the
     # safer/simpler path rather than crash or guess wrong.
     return "returns" if "return" in result else "order_status"

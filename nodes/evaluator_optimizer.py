@@ -1,7 +1,17 @@
 """
 Evaluator-Optimizer Node — US-04
 
-Two-step quality gate applied to every draft reply
+Two-step quality gate applied to every draft reply, regardless of which
+flow produced it (order status, tracking, returns):
+
+  1. evaluator_node   - scores the draft 1-5 on tone, clarity, policy
+                         alignment, and completeness. Returns structured
+                         JSON so the optimizer can act on it programmatically.
+  2. optimizer_node    - if average score < THRESHOLD and we haven't
+                         revised yet, asks the LLM to rewrite the draft
+                         using the evaluator's feedback. Revises ONCE
+                         (per brief) - if still below threshold after
+                         that, it ships anyway rather than looping forever.
 
 Routing between these + back to evaluator (or straight to END) happens
 in graph.py via a conditional edge, using `needs_revision()` below.
@@ -12,10 +22,12 @@ import json
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 
+from utils.llm_helpers import extract_text
+
 load_dotenv()
 
 llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
+    model="gemini-3.6-flash",
     google_api_key=os.getenv("GEMINI_API_KEY"),
 )
 
@@ -78,7 +90,7 @@ def evaluator_node(state: dict) -> dict:
     ))
 
     try:
-        scores = _parse_json_response(response.content)
+        scores = _parse_json_response(extract_text(response))
     except (json.JSONDecodeError, ValueError):
         # Fail safe: if the evaluator's own output is malformed, don't crash
         # the graph - treat as a pass so the customer still gets a reply.
@@ -117,7 +129,7 @@ def optimizer_node(state: dict) -> dict:
         feedback=feedback,
         order_context=json.dumps(order_record) if order_record else "none",
     ))
-    revised = response.content.strip()
+    revised = extract_text(response)
 
     log_entry = f"Optimizer: revised draft based on feedback: '{feedback}'"
 
