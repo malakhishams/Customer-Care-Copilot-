@@ -24,17 +24,29 @@ class CustomerCareState(TypedDict):
     missing_fields: list[str]                     # what the router still needs before it can proceed
 
     # ---------------------------------------------------------------
+    # Intent (US-02/US-03) — LLM classifies once returns enters the picture
+    # ---------------------------------------------------------------
+    intent: Optional[str]                          # "order_status" (default) or "returns"
+
+    # ---------------------------------------------------------------
     # Order Lookup (US-01) — result of the DB tool call
     # ---------------------------------------------------------------
     order_record: Optional[dict]                  # row from Orders (+ joined CustomerContacts/Shipments)
     order_found: Optional[bool]
-
 
     # ---------------------------------------------------------------
     # Tracking (US-02) — result of the Shippo API tool call
     # ---------------------------------------------------------------
     tracking_status: Optional[dict]                # {"status", "status_details", "status_date", "eta"}
     tracking_available: Optional[bool]              # False if order has no tracking_number, or Shippo call failed
+
+    # ---------------------------------------------------------------
+    # Returns (US-03)
+    # ---------------------------------------------------------------
+    return_eligible: Optional[bool]                 # within the 14-day policy window
+    return_reason: Optional[str]                    # "opened" | "unused" | "damaged" — from clarifying question
+    awaiting_return_reason: bool                    # True if we've asked but haven't gotten this yet (multi-turn)
+    return_plan: Optional[str]                      # generated instructions once eligible + reason known
 
     # ---------------------------------------------------------------
     # Output
