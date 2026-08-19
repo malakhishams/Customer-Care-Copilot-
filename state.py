@@ -29,6 +29,13 @@ class CustomerCareState(TypedDict):
     order_record: Optional[dict]                  # row from Orders (+ joined CustomerContacts/Shipments)
     order_found: Optional[bool]
 
+
+    # ---------------------------------------------------------------
+    # Tracking (US-02) — result of the Shippo API tool call
+    # ---------------------------------------------------------------
+    tracking_status: Optional[dict]                # {"status", "status_details", "status_date", "eta"}
+    tracking_available: Optional[bool]              # False if order has no tracking_number, or Shippo call failed
+
     # ---------------------------------------------------------------
     # Output
     # ---------------------------------------------------------------

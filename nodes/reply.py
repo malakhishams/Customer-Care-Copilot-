@@ -38,9 +38,14 @@ Use this order data:
 - Shipping to: {ship_city}, {ship_country}
 - Carrier: {carrier}
 
+{tracking_section}
+
 Include: current status, the key dates in plain language (not raw timestamps),
-and the next expected step. Keep it to 2-4 sentences. Do not invent details
-not provided above. Do not include a greeting like "Dear customer" or a
+and the next expected step. If live tracking evidence is provided above,
+mention it as proof the customer can trust (e.g. "as of [date], your package
+was scanned in transit"). Keep it to 2-4 sentences. Do not invent details
+not provided above — especially do not invent tracking URLs or links that
+weren't given to you. Do not include a greeting like "Dear customer" or a
 sign-off — just the message body.
 """
 
@@ -63,7 +68,18 @@ def _template_not_found() -> str:
     )
 
 
-def _draft_found_reply(order_record: dict) -> str:
+def _draft_found_reply(order_record: dict, tracking_status: dict | None) -> str:
+    if tracking_status:
+        tracking_section = (
+            "Live tracking evidence (from the carrier, use this as proof):\n"
+            f"- Status: {tracking_status.get('status')}\n"
+            f"- Details: {tracking_status.get('status_details')}\n"
+            f"- As of: {tracking_status.get('status_date')}\n"
+            f"- ETA: {tracking_status.get('eta')}"
+        )
+    else:
+        tracking_section = "No live tracking evidence available for this order."
+
     prompt = DRAFT_PROMPT.format(
         order_id=order_record.get("order_id"),
         order_date=order_record.get("order_date"),
@@ -72,6 +88,7 @@ def _draft_found_reply(order_record: dict) -> str:
         ship_city=order_record.get("ship_city"),
         ship_country=order_record.get("ship_country"),
         carrier=order_record.get("carrier"),
+        tracking_section=tracking_section,
     )
     response = llm.invoke(prompt)
     return response.content.strip()
@@ -91,8 +108,11 @@ def reply_node(state: dict) -> dict:
         log_entry = "Reply: order not found (template, no LLM call)"
         is_llm_draft = False
     elif order_found is True and order_record:
-        reply = _draft_found_reply(order_record)
-        log_entry = "Reply: order found, drafted via LLM"
+        tracking_status = state.get("tracking_status")
+        reply = _draft_found_reply(order_record, tracking_status)
+        log_entry = "Reply: order found, drafted via LLM" + (
+            " (with live tracking evidence)" if tracking_status else " (no tracking evidence)"
+        )
         is_llm_draft = True
     else:
         # Shouldn't normally happen, but never leave the customer with nothing.
@@ -127,4 +147,13 @@ if __name__ == "__main__":
             "carrier": "shippo",
         },
     }
-    print("Found (LLM draft):", reply_node(found_state)["draft_reply"])
+    print("Found (no tracking):", reply_node(found_state)["draft_reply"], "\n")
+
+    found_state_with_tracking = dict(found_state)
+    found_state_with_tracking["tracking_status"] = {
+        "status": "TRANSIT",
+        "status_details": "Your shipment has departed from the origin.",
+        "status_date": "2026-08-17T20:41:57Z",
+        "eta": "2026-08-19T23:34:13Z",
+    }
+    print("Found (with tracking):", reply_node(found_state_with_tracking)["draft_reply"])

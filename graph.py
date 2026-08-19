@@ -15,6 +15,7 @@ from langgraph.graph import StateGraph, START, END
 from state import CustomerCareState
 from nodes.router import router_node
 from nodes.order_lookup import order_lookup_node
+from nodes.tracking import tracking_node
 from nodes.reply import reply_node
 from nodes.evaluator_optimizer import evaluator_node, optimizer_node, finalize_node, needs_revision
 
@@ -40,6 +41,7 @@ def build_graph():
 
     builder.add_node("router", router_node)
     builder.add_node("order_lookup", order_lookup_node)
+    builder.add_node("tracking", tracking_node)
     builder.add_node("reply", reply_node)
     builder.add_node("evaluator", evaluator_node)
     builder.add_node("optimizer", optimizer_node)
@@ -56,7 +58,8 @@ def build_graph():
         },
     )
 
-    builder.add_edge("order_lookup", "reply")
+    builder.add_edge("order_lookup", "tracking")
+    builder.add_edge("tracking", "reply")
 
     # Only LLM-drafted replies go through the evaluator-optimizer gate;
     # templates (missing-info, not-found) are already known-good and skip
@@ -111,6 +114,8 @@ if __name__ == "__main__":
             "missing_fields": [],
             "order_record": None,
             "order_found": None,
+            "tracking_status": None,
+            "tracking_available": None,
             "draft_reply": None,
             "is_llm_draft": False,
             "evaluator_score": None,

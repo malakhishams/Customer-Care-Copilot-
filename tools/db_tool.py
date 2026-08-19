@@ -10,7 +10,7 @@ the caller decides how to phrase the fallback message (robustness requirement).
 import sqlite3
 from typing import Optional
 
-DB_PATH = "data/northwind.db"
+DB_PATH = r"data\northwind.db"
 
 # Columns pulled from the join — kept explicit (not SELECT *) so the
 # returned dict has a stable, predictable shape for downstream nodes.
