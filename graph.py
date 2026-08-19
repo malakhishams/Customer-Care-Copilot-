@@ -11,6 +11,7 @@ straight to reply_node, which asks the customer for what's missing.
 """
 
 from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import InMemorySaver
 
 from state import CustomerCareState
 from nodes.router import router_node
@@ -19,6 +20,7 @@ from nodes.tracking import tracking_node
 from nodes.returns import returns_node
 from nodes.reply import reply_node
 from nodes.evaluator_optimizer import evaluator_node, optimizer_node, finalize_node, needs_revision
+from nodes.memory import memory_node
 
 
 def route_after_router(state: CustomerCareState) -> str:
@@ -57,6 +59,7 @@ def build_graph():
     builder.add_node("evaluator", evaluator_node)
     builder.add_node("optimizer", optimizer_node)
     builder.add_node("finalize", finalize_node)
+    builder.add_node("memory", memory_node)
 
     builder.add_edge(START, "router")
 
@@ -112,9 +115,11 @@ def build_graph():
     # rather than trusting the optimizer blindly.
     builder.add_edge("optimizer", "evaluator")
 
-    builder.add_edge("finalize", END)
+    builder.add_edge("finalize", "memory")
+    builder.add_edge("memory", END)
 
-    return builder.compile()
+    checkpointer = InMemorySaver()
+    return builder.compile(checkpointer=checkpointer)
 
 
 graph = build_graph()

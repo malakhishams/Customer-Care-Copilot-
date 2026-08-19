@@ -63,6 +63,12 @@ class CustomerCareState(TypedDict):
     final_reply: Optional[str]                      # what actually gets "sent" — evaluator-optimizer's output
 
     # ---------------------------------------------------------------
+    # Memory (US-05)
+    # ---------------------------------------------------------------
+    window_memory: list[dict]                       # last N turns (short-term), bounded
+    case_summary: Optional[str]                      # running long-term summary of the whole case
+
+    # ---------------------------------------------------------------
     # Observability (Non-functional requirement: logs)
     # ---------------------------------------------------------------
     routing_log: Annotated[list[str], operator.add]     # e.g. "Missing order_id, asking customer"
