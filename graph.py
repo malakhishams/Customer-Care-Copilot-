@@ -16,6 +16,7 @@ from state import CustomerCareState
 from nodes.router import router_node
 from nodes.order_lookup import order_lookup_node
 from nodes.tracking import tracking_node
+from nodes.returns import returns_node
 from nodes.reply import reply_node
 from nodes.evaluator_optimizer import evaluator_node, optimizer_node, finalize_node, needs_revision
 
@@ -25,6 +26,15 @@ def route_after_router(state: CustomerCareState) -> str:
     if state.get("missing_fields"):
         return "reply"          # skip lookup, ask the customer for what's missing
     return "order_lookup"       # we have both fields, proceed to the DB tool
+
+
+def route_after_order_lookup(state: CustomerCareState) -> str:
+    """Conditional edge: intent-driven branch after order_lookup.
+    Returns intent goes to the returns flow; everything else (order_status)
+    goes through automatic tracking enrichment, same as before."""
+    if state.get("intent") == "returns":
+        return "returns"
+    return "tracking"
 
 
 def route_after_reply(state: CustomerCareState) -> str:
@@ -42,6 +52,7 @@ def build_graph():
     builder.add_node("router", router_node)
     builder.add_node("order_lookup", order_lookup_node)
     builder.add_node("tracking", tracking_node)
+    builder.add_node("returns", returns_node)
     builder.add_node("reply", reply_node)
     builder.add_node("evaluator", evaluator_node)
     builder.add_node("optimizer", optimizer_node)
@@ -58,8 +69,19 @@ def build_graph():
         },
     )
 
-    builder.add_edge("order_lookup", "tracking")
+    # After order_lookup: returns intent branches to the returns flow,
+    # everything else goes through automatic tracking enrichment.
+    builder.add_conditional_edges(
+        "order_lookup",
+        route_after_order_lookup,
+        {
+            "returns": "returns",
+            "tracking": "tracking",
+        },
+    )
+
     builder.add_edge("tracking", "reply")
+    builder.add_edge("returns", "reply")
 
     # Only LLM-drafted replies go through the evaluator-optimizer gate;
     # templates (missing-info, not-found) are already known-good and skip
@@ -103,6 +125,7 @@ if __name__ == "__main__":
         "Where is my order? #10248, vinet@example-customer.com",
         "I want to know about my package",  # missing everything
         "my order is 99999999, email is vinet@example-customer.com",  # not found
+        "I want to return this, it arrived damaged. order 10248, vinet@example-customer.com",  # returns, not eligible (old test data)
     ]
 
     for msg in test_cases:
@@ -112,10 +135,15 @@ if __name__ == "__main__":
             "customer_email": None,
             "order_id": None,
             "missing_fields": [],
+            "intent": None,
             "order_record": None,
             "order_found": None,
             "tracking_status": None,
             "tracking_available": None,
+            "return_eligible": None,
+            "return_reason": None,
+            "awaiting_return_reason": False,
+            "return_plan": None,
             "draft_reply": None,
             "is_llm_draft": False,
             "evaluator_score": None,

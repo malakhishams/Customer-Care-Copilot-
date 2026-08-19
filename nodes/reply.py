@@ -94,10 +94,19 @@ def _draft_found_reply(order_record: dict, tracking_status: dict | None) -> str:
     return response.content.strip()
 
 
+def _clarify_return_reason_template() -> str:
+    return (
+        "Good news — this order is eligible for a return! To help you along, "
+        "could you let me know: was the item unused/unopened, opened but not used, "
+        "or did it arrive damaged?"
+    )
+
+
 def reply_node(state: dict) -> dict:
     missing_fields = state.get("missing_fields", [])
     order_found = state.get("order_found")
     order_record = state.get("order_record")
+    intent = state.get("intent")
 
     if missing_fields:
         reply = _template_missing_info(missing_fields)
@@ -106,6 +115,26 @@ def reply_node(state: dict) -> dict:
     elif order_found is False:
         reply = _template_not_found()
         log_entry = "Reply: order not found (template, no LLM call)"
+        is_llm_draft = False
+    elif intent == "returns" and order_found is True:
+        return_plan = state.get("return_plan")
+        return_eligible = state.get("return_eligible")
+        if return_plan:
+            reply = return_plan
+            log_entry = "Reply: return plan generated (template, no LLM call)"
+        elif return_eligible is False:
+            # 14-day policy window is defined in returns.py — hardcoded here
+            # too since reply_node stays decoupled from returns_node's
+            # internal date math (deliberate, not an oversight).
+            reply = (
+                "I'm sorry, but this order is outside our 14-day return "
+                "window. If there's a special circumstance, I can connect you with a human "
+                "agent to review your case."
+            )
+            log_entry = "Reply: return not eligible (template, no LLM call)"
+        else:
+            reply = _clarify_return_reason_template()
+            log_entry = "Reply: asked for return condition (template, no LLM call)"
         is_llm_draft = False
     elif order_found is True and order_record:
         tracking_status = state.get("tracking_status")
